@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Luxo - Mensagens</title>
+  <link rel="shortcut icon" href="images/barco2.png" type="image/x-icon" />
+  <link rel="stylesheet" href="css/default.css" />
+  <style>
+    /* Estilo Luxo para a Tabela */
+    .messages-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 30px 0;
+      background-color: white;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden; /* Para arredondar as bordas do cabeçalho */
+    }
+
+    .messages-table th,
+    .messages-table td {
+      padding: 15px 20px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .messages-table th {
+      background-color: #061a40; /* Azul Marinho */
+      color: #d4af37; /* Dourado */
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 0.9rem;
+    }
+
+    .messages-table tr:hover {
+      background-color: #fdfbf7; /* Cor creme suave ao passar o mouse */
+    }
+
+    /* Estilo dos Botões de Ação */
+    button.action {
+      margin-right: 8px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 0;
+      color: #fff;
+      font-size: 0.8rem;
+      transition: background 0.3s ease;
+      font-weight: bold;
+    }
+
+    button.visualizada { 
+      background: #d4af37; /* Dourado */
+      color: #061a40;
+    }
+    button.visualizada:hover {
+      background: #b5952f;
+    }
+
+    button.excluir { 
+      background: #c44545; /* Vermelho */
+    }
+    button.excluir:hover {
+      background: #a03636;
+    }
+
+    /* Estilo para mensagem nova (não visualizada) */
+    tr.nova-mensagem {
+      font-weight: bold;
+      color: #000;
+      background-color: #fff;
+    }
+
+    tr.mensagem-lida {
+      font-weight: normal;
+      color: #666;
+      background-color: #fcfcfc;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <header>
+      <div id="title">
+        <img src="images/barco1.png" alt="ícone de barco" />
+        <div class="headtitle">
+          <h1>Luxo</h1>
+          <h2>Aluguel de iates</h2>
+        </div>
+      </div>
+
+      <nav>
+        <ul class="navmenu">
+          <li><a href="index.html">Página inicial</a></li>
+          <li><a href="aluguel.html">Aluguel de iates</a></li>
+          <li><a href="destinos.html">Destinos</a></li>
+          <li><a href="tripulacao.html">Tripulação</a></li>
+          <li><a href="contato.html">Contato</a></li>
+          <li><a href="admin.html">Admin</a></li>
+          <li><a href="mensagens.html" class="accent">Mensagens</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <div class="pagtitle">
+        <div class="bgtitle"></div>
+        <h2>Mensagens Recebidas</h2>
+      </div>
+
+      <div id="mensagens-container">
+        <table class="messages-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Mensagem</th>
+              <th style="width: 250px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="mensagens-body">
+            </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <footer>
+    <p>© 2025 por Luxo aluguel de iates</p>
+  </footer>
+
+  <script src="js/jquery-3.6.4.min.js"></script>
+  <script src="js/api.js"></script> 
+  
+  <script>
+    (function($){
+      const LS_KEY = "mensagens_local";
+
+      // Carrega estado local (quais foram lidas/excluídas localmente)
+      function loadLocal() {
+        return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+      }
+      function saveLocal(msgs) {
+        localStorage.setItem(LS_KEY, JSON.stringify(msgs));
+      }
+
+      function renderTable() {
+        const tbody = $("#mensagens-body");
+        tbody.empty();
+        const msgs = loadLocal();
+        
+        if(!msgs.length) {
+          tbody.append('<tr><td colspan="4" style="text-align:center; padding:30px; color:#666">Nenhuma mensagem encontrada na caixa de entrada.</td></tr>');
+          return;
+        }
+
+        msgs.forEach(m => {
+          // Define a classe CSS baseada se foi visualizada ou não
+          const classeLinha = m.visualizada ? "mensagem-lida" : "nova-mensagem";
+          const textoBotao = m.visualizada ? "Lida" : "Marcar como Lida";
+          
+          const tr = $(`
+            <tr data-id="${m.__localId}" class="${classeLinha}">
+              <td>${m.nome}</td>
+              <td>${m.email}</td>
+              <td>${m.mensagem}</td>
+              <td>
+                <button class="action visualizada">${textoBotao}</button>
+                <button class="action excluir">Excluir</button>
+              </td>
+            </tr>
+          `);
+          tbody.append(tr);
+        });
+      }
+
+      function atualizarMensagens() {
+        // Tenta obter do servidor (api.js), se falhar usa array vazio
+        let remote = [];
+        try {
+            if(typeof obterMensagens === 'function'){
+                remote = obterMensagens() || [];
+            } else {
+                console.warn("Função obterMensagens não encontrada em api.js");
+            }
+        } catch(e) { console.error(e); }
+
+        let local = loadLocal();
+
+        // Cria IDs únicos locais se não existirem
+        remote = remote.map((m,i)=>{
+          const id = m.id || m._id || (m.email + "|" + m.nome + "|" + i);
+          return {...m, __localId: id, visualizada: false}; // Por padrão não lida
+        });
+
+        // Mapa para mesclar o status "visualizada" que já estava salvo no LocalStorage
+        const mapLocal = {};
+        local.forEach(l => { mapLocal[l.__localId] = l; });
+
+        // Mescla: Pega as novas do servidor, mas mantém o status "visualizada" se já existir localmente
+        const merged = remote.map(m=>{
+          if(mapLocal[m.__localId]) return {...m, visualizada: mapLocal[m.__localId].visualizada};
+          return m;
+        });
+        
+        // Se houver exclusão local (estava no remote mas user excluiu), lógica pode variar.
+        // Neste exemplo simples, estamos re-salvando o que veio do remote.
+        // Se quiser persistir exclusões, precisaria de uma lista de "excluídos".
+        // Para simplificar o projeto, vamos apenas salvar o merged.
+        
+        saveLocal(merged);
+        renderTable();
+      }
+
+      function bindActions() {
+        $("#mensagens-body").off("click", "button.action");
+        $("#mensagens-body").on("click", "button.action", function(){
+          const tr = $(this).closest("tr");
+          const id = tr.data("id");
+          let msgs = loadLocal();
+          const idx = msgs.findIndex(m=>m.__localId===id);
+
+          if($(this).hasClass("visualizada")) {
+            // Alterna status
+            if(idx > -1) {
+                msgs[idx].visualizada = !msgs[idx].visualizada;
+                saveLocal(msgs);
+                renderTable();
+            }
+          } else if($(this).hasClass("excluir")) {
+            if(confirm("Deseja realmente excluir esta mensagem permanentemente?")) {
+              if(idx > -1) {
+                  msgs.splice(idx, 1); // Remove do array
+                  saveLocal(msgs);
+                  renderTable();
+              }
+            }
+          }
+        });
+      }
+
+      $(function(){
+        atualizarMensagens();
+        bindActions();
+      });
+
+    })(jQuery);
+  </script>
+</body>
+</html>
